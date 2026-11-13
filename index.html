@@ -23,6 +23,7 @@
 </nav>
 
 <div id="banner" class="banner" hidden></div>
+<div id="updBar" class="banner" hidden>已有新版本　<button type="button" id="btnReload" class="linkbtn">點此更新</button></div>
 
 <main>
   <!-- 證件模式：三張照片進度 -->
@@ -38,6 +39,10 @@
       <div id="hint"></div>
     </div>
     <p id="camErr" class="err" hidden></p>
+    <div class="orient" id="orient">
+      <button type="button" data-o="land" class="on">橫式名片</button>
+      <button type="button" data-o="port">直式名片</button>
+    </div>
     <div class="camctl">
       <button type="button" id="btnShot" class="shot" aria-label="拍照"></button>
     </div>
@@ -59,7 +64,21 @@
     <div class="chips" id="cardChips"></div>
     <label>公司名稱<input id="cardCompany" autocomplete="off" placeholder="辨識後可修改"></label>
     <div class="chips" id="cardCoChips"></div>
-    <p class="fn" id="cardFn"></p>
+    <div class="poolbox" id="cardPoolBox" hidden>
+      <div class="pooltop">
+        <span>OCR 文字，點選加入：</span>
+        <div class="orient small" id="cardTarget">
+          <button type="button" data-t="name" class="on">→ 姓名</button>
+          <button type="button" data-t="company">→ 公司</button>
+        </div>
+        <button type="button" id="btnPoolClear" class="mini">清空此欄</button>
+      </div>
+      <div class="chips" id="cardPool"></div>
+      <p class="hintsm">可連續點選多個，依順序接在一起；再點一次取消。第一次點選會取代欄位原本的內容。</p>
+    </div>
+    <label>檔名（預設：姓名_公司名稱）
+      <div class="fnrow"><input id="cardFile" autocomplete="off"><span>.jpg</span></div>
+    </label>
     <div class="row">
       <button type="button" id="btnCardSave" class="primary">儲存照片</button>
       <button type="button" id="btnCardShare" class="ghost" hidden>分享</button>
@@ -72,6 +91,10 @@
     <div class="ocrstat" id="idStat"></div>
     <label>姓名（Word 檔名）<input id="idName" autocomplete="off" placeholder="辨識後可修改"></label>
     <div class="chips" id="idChips"></div>
+    <div class="poolbox" id="idPoolBox" hidden>
+      <div class="pooltop"><span>OCR 文字，點選加入姓名：</span><button type="button" id="btnIdPoolClear" class="mini">清空姓名</button></div>
+      <div class="chips" id="idPool"></div>
+    </div>
     <p class="fn" id="idFn"></p>
     <div class="row">
       <button type="button" id="btnDocx" class="primary" disabled>產生 Word 檔</button>
@@ -80,6 +103,8 @@
     <button type="button" id="btnIdReset" class="ghost wide">新的一位（清除全部）</button>
   </section>
 
+  <p class="note"><span id="fixCount"></span> <button type="button" id="btnFixClear" class="linkbtn" hidden>清除</button></p>
+  <p class="note" id="ver"></p>
   <p class="note">影像與姓名辨識都在手機本機處理，不會上傳。首次使用 OCR 需連網下載辨識引擎與中文語言包（數十 MB），之後會快取。</p>
 </main>
 

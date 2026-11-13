@@ -53,3 +53,25 @@ button{font:inherit;cursor:pointer}
 .row .primary{flex:1}
 .note{font-size:12px;color:var(--muted);margin:16px 0 0}
 [hidden]{display:none!important}
+
+.orient{display:flex;gap:8px;margin-top:10px}
+.orient button{flex:1;padding:8px 0;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:10px;font-size:14px}
+.orient button.on{background:#1d4ed8;border-color:#1d4ed8;color:#fff;font-weight:600}
+details.lines{margin-top:10px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:#0b1220}
+details.lines summary{font-size:13px;color:var(--muted);cursor:pointer}
+.ln{display:flex;align-items:center;gap:6px;padding:6px 0;border-top:1px solid var(--line);margin-top:6px}
+.ln:first-child{border-top:0}
+.ln span{flex:1;min-width:0;word-break:break-all;font-size:15px}
+.mini{flex:none;border:1px solid var(--line);background:transparent;color:var(--text);border-radius:8px;padding:4px 10px;font-size:13px}
+.linkbtn{background:none;border:0;color:#93c5fd;text-decoration:underline;font-size:12px;padding:0}
+
+.poolbox{margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#0b1220}
+.pooltop{display:flex;align-items:center;flex-wrap:wrap;gap:8px;font-size:13px;color:var(--muted)}
+.pooltop>span{flex:1 1 100%}
+.orient.small{margin:0;flex:1}
+.orient.small button{padding:5px 0;font-size:13px}
+.chip.sel{background:var(--accent);border-color:var(--accent);color:#fff}
+.hintsm{font-size:12px;color:var(--muted);margin:8px 0 0}
+.fnrow{display:flex;align-items:center;gap:6px}
+.fnrow input{width:auto;flex:1;min-width:0}
+.fnrow span{color:var(--muted)}
