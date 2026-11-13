@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>證件拍照助手</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <h1>證件拍照助手</h1>
+  <button id="btnInstall" class="ghost small" hidden>安裝</button>
+</header>
+
+<nav class="seg" id="seg">
+  <button type="button" data-mode="card" class="on">名片</button>
+  <button type="button" data-mode="id">身分證＋健保卡</button>
+</nav>
+
+<div id="banner" class="banner" hidden></div>
+
+<main>
+  <!-- 證件模式：三張照片進度 -->
+  <section id="slotSec" hidden>
+    <div class="slots" id="slots"></div>
+  </section>
+
+  <!-- 相機 -->
+  <section id="camSec">
+    <div id="stage">
+      <video id="video" playsinline muted autoplay></video>
+      <div id="guide"></div>
+      <div id="hint"></div>
+    </div>
+    <p id="camErr" class="err" hidden></p>
+    <div class="camctl">
+      <button type="button" id="btnShot" class="shot" aria-label="拍照"></button>
+    </div>
+    <div class="row3">
+      <button type="button" id="btnSys" class="ghost small">系統相機</button>
+      <button type="button" id="btnGallery" class="ghost small">相簿</button>
+      <button type="button" id="btnSwitch" class="ghost small">換鏡頭</button>
+    </div>
+    <label class="opt" id="optCrop"><input type="checkbox" id="chkCrop" checked> 名片依取景框裁切（取消則存整個畫面）</label>
+    <input type="file" id="fileSys" accept="image/*" capture="environment" hidden>
+    <input type="file" id="fileGallery" accept="image/*" hidden>
+  </section>
+
+  <!-- 名片結果 -->
+  <section id="cardPanel" class="panel" hidden>
+    <img id="cardImg" alt="名片預覽">
+    <div class="ocrstat" id="cardStat"></div>
+    <label>姓名<input id="cardName" autocomplete="off" placeholder="辨識後可修改"></label>
+    <div class="chips" id="cardChips"></div>
+    <label>公司名稱<input id="cardCompany" autocomplete="off" placeholder="辨識後可修改"></label>
+    <div class="chips" id="cardCoChips"></div>
+    <p class="fn" id="cardFn"></p>
+    <div class="row">
+      <button type="button" id="btnCardSave" class="primary">儲存照片</button>
+      <button type="button" id="btnCardShare" class="ghost" hidden>分享</button>
+    </div>
+    <button type="button" id="btnCardNext" class="ghost wide">拍下一張名片</button>
+  </section>
+
+  <!-- 證件結果 -->
+  <section id="idPanel" class="panel" hidden>
+    <div class="ocrstat" id="idStat"></div>
+    <label>姓名（Word 檔名）<input id="idName" autocomplete="off" placeholder="辨識後可修改"></label>
+    <div class="chips" id="idChips"></div>
+    <p class="fn" id="idFn"></p>
+    <div class="row">
+      <button type="button" id="btnDocx" class="primary" disabled>產生 Word 檔</button>
+      <button type="button" id="btnIdShare" class="ghost" disabled hidden>分享</button>
+    </div>
+    <button type="button" id="btnIdReset" class="ghost wide">新的一位（清除全部）</button>
+  </section>
+
+  <p class="note">影像與姓名辨識都在手機本機處理，不會上傳。首次使用 OCR 需連網下載辨識引擎與中文語言包（數十 MB），之後會快取。</p>
+</main>
+
+<script src="parse.js"></script>
+<script src="docx-lite.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
