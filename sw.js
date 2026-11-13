@@ -1,14 +1,14 @@
 /* Service Worker：App 殼層預先快取；OCR 引擎／語言包於首次使用時快取 */
-const VER = 'idshot-v1';
+const VER = 'idshot-v2';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'parse.js', 'docx-lite.js',
-  'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png'];
+  'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 const TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 const CDN_HOSTS = ['cdn.jsdelivr.net', 'tessdata.projectnaptha.com', 'unpkg.com'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {
     const c = await caches.open(VER);
-    await c.addAll(SHELL);
+    await Promise.all(SHELL.map((u) => c.add(u).catch(() => {})));
     try { await c.add(TESS_URL); } catch (_) { /* 沒網路也沒關係，之後再快取 */ }
     self.skipWaiting();
   })());
