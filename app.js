@@ -15,12 +15,12 @@
     { key: 'nhi', label: '健保卡正面', ocr: true }
   ];
   const TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-  const APP_VERSION = 'v3.2';
-  const FIX_KEY = 'idshot.fixes.v1', ORI_KEY = 'idshot.orient.v1', CONFIRM_KEY = 'idshot.confirm.v1';
+  const APP_VERSION = 'v3.3';
+  const FIX_KEY = 'idshot.fixes.v1', ORI_KEY = 'idshot.orient.v2', CONFIRM_KEY = 'idshot.confirm.v1';
 
   /* ===== 狀態 ===== */
   const S = {
-    mode: 'card', orient: { card: 'land', id: 'land' }, pending: null,
+    mode: 'card', orient: { card: 'port', id: 'port' }, pending: null,
     stream: null, camOn: false, wantCam: true, devices: [], facing: 'environment',
     worker: null, queue: Promise.resolve(),
     card: { blob: null, url: null, nameEdited: false, coEdited: false, fileEdited: false, raw: { names: [], companies: [] }, job: 0, sel: { name: [], company: [] }, target: 'name', pool: [] },
@@ -211,8 +211,9 @@
   }
   function updateOrientUi() {
     const id = S.mode === 'id', o = S.orient[S.mode];
-    const labels = id ? ['證件橫放', '證件直放（拍完自動轉橫）'] : ['橫式名片', '直式名片'];
-    document.querySelectorAll('#orient button').forEach((b, i) => { b.textContent = labels[i]; b.classList.toggle('on', b.dataset.o === o); });
+    const port = o === 'port';
+    $('#btnOrient').textContent = (id ? (port ? '取景框：證件直放（拍完自動轉橫）' : '取景框：證件橫放') : (port ? '取景框：直式名片' : '取景框：橫式名片'))
+      + '　⟲ 點一下改' + (port ? '橫式' : '直式');
     updateHint();
     if (S.camOn) layoutStage();
   }
@@ -633,7 +634,7 @@
 
   /* ===== 事件 ===== */
   document.querySelectorAll('#seg button').forEach((b) => { b.onclick = () => setMode(b.dataset.mode); });
-  document.querySelectorAll('#orient button').forEach((b) => { b.onclick = () => setOrient(b.dataset.o, true); });
+  $('#btnOrient').onclick = () => setOrient(S.orient[S.mode] === 'port' ? 'land' : 'port', true);
   $('#btnShot').onclick = shoot;
   $('#btnSwitch').onclick = switchCam;
   $('#btnSys').onclick = () => $('#fileSys').click();
@@ -687,8 +688,8 @@
   $('#ver').textContent = '版本 ' + APP_VERSION;
 
   try {
-    S.orient.card = localStorage.getItem(ORI_KEY + '.card') === 'port' ? 'port' : 'land';
-    S.orient.id = localStorage.getItem(ORI_KEY + '.id') === 'port' ? 'port' : 'land';
+    S.orient.card = localStorage.getItem(ORI_KEY + '.card') === 'land' ? 'land' : 'port';
+    S.orient.id = localStorage.getItem(ORI_KEY + '.id') === 'land' ? 'land' : 'port';
     $('#chkConfirm').checked = localStorage.getItem(CONFIRM_KEY) !== '0';
   } catch (_) { /* 忽略 */ }
   updateOrientUi();
