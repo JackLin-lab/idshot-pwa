@@ -82,3 +82,10 @@ details.lines summary{font-size:13px;color:var(--muted);cursor:pointer}
 .row .ghost{flex:1}
 
 .orient #btnOrient{background:#1d4ed8;border-color:#1d4ed8;color:#fff;font-weight:600;font-size:15px;padding:10px 0}
+
+.stampbox{margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--panel)}
+.stamphd{font-size:13px;color:var(--muted);margin-bottom:4px}
+.stampbox label{display:inline-flex;align-items:center;gap:6px;margin:4px 14px 4px 0;font-size:15px}
+.stamppv{font-family:"LXGW WenKai TC","Kaiti TC","BiauKai",serif;color:#93c5fd;font-size:17px;margin:6px 0}
+.pvgrid{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.pvgrid img{width:100%;border-radius:6px}

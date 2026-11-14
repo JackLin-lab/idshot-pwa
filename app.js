@@ -15,8 +15,12 @@
     { key: 'nhi', label: '健保卡正面', ocr: true }
   ];
   const TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-  const APP_VERSION = 'v3.3';
-  const FIX_KEY = 'idshot.fixes.v1', ORI_KEY = 'idshot.orient.v2', CONFIRM_KEY = 'idshot.confirm.v1';
+  const APP_VERSION = 'v3.4';
+  const FIX_KEY = 'idshot.fixes.v1', ORI_KEY = 'idshot.orient.v2', CONFIRM_KEY = 'idshot.confirm.v1', STAMP_KEY = 'idshot.stamp.v1';
+  const KAI_CSS = 'https://cdn.jsdelivr.net/npm/lxgw-wenkai-tc-webfont@1.0.0/style.css';
+  const KAI_STACK = '"LXGW WenKai TC","Kaiti TC","BiauKai","DFKai-SB","KaiTi","標楷體",serif';
+  // 身分證／健保卡只先辨識姓名所在的區域（比例），讀不到才退回整張
+  const ROI = { front: { x0: 0.22, y0: 0.10, x1: 1, y1: 0.62 }, nhi: { x0: 0.04, y0: 0.26, x1: 0.96, y1: 0.74 } };
 
   /* ===== 狀態 ===== */
   const S = {
@@ -335,6 +339,12 @@
     x.drawImage(src, x0, y0, w, hh, pad, pad, Math.round(w * k), Math.round(hh * k));
     return c;
   }
+  function cropRoi(src, r) {
+    const w = src.width, h = src.height, sw = Math.round((r.x1 - r.x0) * w), sh = Math.round((r.y1 - r.y0) * h);
+    const c = document.createElement('canvas'); c.width = sw; c.height = sh;
+    c.getContext('2d').drawImage(src, Math.round(r.x0 * w), Math.round(r.y0 * h), sw, sh, 0, 0, sw, sh);
+    return c;
+  }
   function ocrSingle(canvas) {
     const run = async () => {
       const w = await getWorker();
@@ -475,10 +485,18 @@
     const job = ++S.id.job[key];
     S.id.state[key] = '辨識中…'; S.id.cands[key] = []; S.id.raw[key] = []; S.id.lines[key] = []; updateIdUi();
     try {
-      const prep = prepForOcr(canvas, 2000);
-      const lines = await ocrLines(prep);
+      S.id.state[key] = '辨識姓名區域…'; updateIdUi();
+      let prep = prepForOcr(cropRoi(canvas, ROI[key]), 1600);
+      let lines = await ocrLines(prep);
       if (job !== S.id.job[key]) return;
-      const res = Parse.parseIdName(lines);
+      let res = Parse.parseIdName(lines);
+      if (!res.names.length) {                         // 區域內沒讀到：退回掃描整張
+        S.id.state[key] = '區域內沒讀到，改掃描整張…'; updateIdUi();
+        prep = prepForOcr(canvas, 2000);
+        lines = await ocrLines(prep);
+        if (job !== S.id.job[key]) return;
+        res = Parse.parseIdName(lines);
+      }
       S.id.raw[key] = res.names.slice();
       S.id.lines[key] = Parse.allLines(lines);
       S.id.cands[key] = Fix.apply('name', S.id.raw[key]);
@@ -540,9 +558,97 @@
     learnName(S.id.raw.front, f); learnName(S.id.raw.nhi, f);
     Fix.save(); updateFixNote();
   }
+  /* ===== 加註文字（深藍色楷書，印在照片的空白處） ===== */
+  function stampText() {
+    const a = $('#stA').checked;
+    const ps = ['#stB', '#stC', '#stD'].filter((s) => $(s).checked).map((s) => $(s).parentElement.textContent.trim());
+    if (!a && !ps.length) return '';
+    return '僅供' + (a ? '臺灣銀行' : '') + ps.join('、') + '使用';
+  }
+  function updateStampUi() {
+    $('#stampPv').textContent = stampText() || '（未勾選，不加註）';
+    try { localStorage.setItem(STAMP_KEY, JSON.stringify(['#stA', '#stB', '#stC', '#stD'].map((s) => $(s).checked))); } catch (_) { /* 忽略 */ }
+  }
+  async function ensureKai(text) {                       // 載入楷體字型；失敗就用系統字型
+    S.kaiFail = false;
+    try {
+      if (!S.kaiCss) {                                   // 只建立一次樣式表連結，並等它載入完成（或失敗）
+        S.kaiCss = new Promise((res) => {
+          const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = KAI_CSS;
+          l.onload = () => res(true); l.onerror = () => { S.kaiCss = null; res(false); };
+          document.head.appendChild(l); setTimeout(() => res(false), 8000);
+        });
+      }
+      const ok = await S.kaiCss;
+      if (!ok) { S.kaiFail = true; return; }
+      await Promise.race([document.fonts.load('40px "LXGW WenKai TC"', text), new Promise((r) => setTimeout(r, 8000))]);
+      S.kaiFail = !Array.from(document.fonts).some((f) => /LXGW/.test(f.family) && f.status === 'loaded');
+    } catch (_) { S.kaiFail = true; }
+  }
+  function drawStamp(c, text) {
+    const W = c.width, H = c.height, x = c.getContext('2d');
+    let fs = 34, lines = [text];
+    const setF = () => { x.font = fs + 'px ' + KAI_STACK; };
+    setF();
+    while (x.measureText(text).width > W * 0.9 && fs > 24) { fs -= 2; setF(); }
+    if (x.measureText(text).width > W * 0.9) {           // 太長就分成兩行
+      let cut = text.indexOf('、', Math.floor(text.length / 3)); if (cut < 0 || cut > text.length * 0.7) cut = Math.ceil(text.length / 2); else cut += 1;
+      lines = [text.slice(0, cut), text.slice(cut)];
+    }
+    const lineH = Math.round(fs * 1.25), boxH = lineH * lines.length + 6;
+    const boxW = Math.ceil(Math.max.apply(null, lines.map((l) => x.measureText(l).width))) + 16;
+    const d = x.getImageData(0, 0, W, H).data;
+    const L = (px, py) => { const i = (py * W + px) * 4; return (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000; };
+    const mx = Math.round(W * 0.03), my = Math.round(H * 0.04);
+    let best = { s: Infinity, x: mx, y: my };
+    const xs = []; for (let px = mx; px <= W - boxW - mx; px += 40) xs.push(px); if (!xs.length) xs.push(mx);
+    for (let py = my; py <= H - boxH - my; py += 6) {
+      for (const px of xs) {                              // 越平滑、越亮的地方越像空白
+        let sum = 0, lum = 0, n = 0;
+        for (let yy = py; yy < py + boxH; yy += 4) for (let xx = px; xx < Math.min(px + boxW, W - 4); xx += 4) {
+          const a = L(xx, yy); sum += Math.abs(a - L(xx + 4 > W - 1 ? xx : xx + 4, yy)) + Math.abs(a - L(xx, yy + 4 > H - 1 ? yy : yy + 4)); lum += a; n++;
+        }
+        const s = sum / n + 0.25 * (255 - lum / n);
+        if (s < best.s) best = { s, x: px, y: py };
+      }
+    }
+    x.textBaseline = 'top'; x.textAlign = 'left'; x.lineJoin = 'round';
+    lines.forEach((ln, i) => {
+      const ty = best.y + 3 + i * lineH;
+      x.lineWidth = 5; x.strokeStyle = 'rgba(255,255,255,0.9)'; x.strokeText(ln, best.x + 8, ty);
+      x.fillStyle = '#0b2a6f'; x.fillText(ln, best.x + 8, ty);
+    });
+  }
+  async function slotCanvas(s, text) {
+    const bmp = await createImageBitmap(S.id.slots[s.key].blob);
+    const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+    c.getContext('2d').drawImage(bmp, 0, 0);
+    if (text) drawStamp(c, text);
+    return c;
+  }
+  async function previewStamp() {
+    const text = stampText(), box = $('#stampPvImgs'); box.innerHTML = '';
+    if (!text) { $('#stampPv').textContent = '（未勾選，不加註）'; return; }
+    if (!SLOTS.some((s) => S.id.slots[s.key])) { $('#stampPv').textContent = text + '（拍好照片後才能預覽）'; return; }
+    await ensureKai(text);
+    for (const s of SLOTS) {
+      if (!S.id.slots[s.key]) continue;
+      const im = document.createElement('img'); im.alt = s.label;
+      im.src = (await slotCanvas(s, text)).toDataURL('image/jpeg', 0.8);
+      box.appendChild(im);
+    }
+    if (S.kaiFail) $('#stampPv').textContent = text + '（楷體字型未載入，預覽改用系統字型；請連網後再試）';
+  }
   async function makeDocx() {
+    const text = stampText();
+    if (text) await ensureKai(text);
     const imgs = [];
-    for (const s of SLOTS) imgs.push(new Uint8Array(await S.id.slots[s.key].blob.arrayBuffer()));
+    for (const s of SLOTS) {
+      if (!text) { imgs.push(new Uint8Array(await S.id.slots[s.key].blob.arrayBuffer())); continue; }
+      const c = await slotCanvas(s, text);
+      const b = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.92));
+      imgs.push(new Uint8Array(await b.arrayBuffer()));
+    }
     return DocxLite.buildDocx(imgs, { widthCm: ID_W_CM, heightCm: ID_H_CM });
   }
   function resetId() {
@@ -616,6 +722,7 @@
     S.mode = m;
     document.querySelectorAll('#seg button').forEach((b) => b.classList.toggle('on', b.dataset.mode === m));
     $('#slotSec').hidden = m !== 'id';
+    $('#stampSec').hidden = m !== 'id';
     $('#idPanel').hidden = m !== 'id';
     $('#optCrop').hidden = m !== 'card';
     cancelReview(); updateOrientUi();
@@ -657,7 +764,10 @@
   $('#btnCardNext').onclick = nextCard;
   $('#idName').oninput = () => { S.id.nameEdited = true; S.id.sel = []; updateIdUi(); };
   $('#btnDocx').onclick = async () => {
-    try { recordIdFix(); download(await makeDocx(), idFilename()); setStat('#idStat', '已產生 ' + idFilename() + '（在下載資料夾）'); }
+    try {
+      recordIdFix(); const blob = await makeDocx(); download(blob, idFilename());
+      setStat('#idStat', '已產生 ' + idFilename() + '（在下載資料夾）' + (stampText() && S.kaiFail ? '\n楷體字型未載入，加註改用系統字型；連網後重新產生即可。' : ''));
+    }
     catch (e) { setStat('#idStat', '產生失敗：' + e.message, true); }
   };
   $('#btnIdShare').onclick = async () => { try { recordIdFix(); share(await makeDocx(), idFilename()); } catch (_) { /* 忽略 */ } };
@@ -694,5 +804,12 @@
   } catch (_) { /* 忽略 */ }
   updateOrientUi();
   updateFixNote();
-  setMode('card');
+  try {
+    const sv = JSON.parse(localStorage.getItem(STAMP_KEY) || '[]');
+    ['#stA', '#stB', '#stC', '#stD'].forEach((s, i) => { $(s).checked = !!sv[i]; });
+  } catch (_) { /* 忽略 */ }
+  ['#stA', '#stB', '#stC', '#stD'].forEach((s) => { $(s).onchange = () => { $('#stampPvImgs').innerHTML = ''; updateStampUi(); }; });
+  $('#btnStampPv').onclick = previewStamp;
+  updateStampUi();
+  setMode('id');
 })();

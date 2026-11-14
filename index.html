@@ -18,8 +18,8 @@
 </header>
 
 <nav class="seg" id="seg">
-  <button type="button" data-mode="card" class="on">名片</button>
-  <button type="button" data-mode="id">身分證＋健保卡</button>
+  <button type="button" data-mode="id" class="on">身分證＋健保卡</button>
+  <button type="button" data-mode="card">名片</button>
 </nav>
 
 <div id="banner" class="banner" hidden></div>
@@ -29,6 +29,18 @@
   <!-- 證件模式：三張照片進度 -->
   <section id="slotSec" hidden>
     <div class="slots" id="slots"></div>
+  </section>
+
+  <!-- 加註文字（證件用） -->
+  <section id="stampSec" class="stampbox" hidden>
+    <div class="stamphd">加註文字：深藍色楷書，印在三張證件照的空白處</div>
+    <label><input type="checkbox" id="stA"> 僅供臺灣銀行</label>
+    <label><input type="checkbox" id="stB"> 開戶</label>
+    <label><input type="checkbox" id="stC"> 申辦貸款</label>
+    <label><input type="checkbox" id="stD"> 申辦信用卡</label>
+    <div class="stamppv" id="stampPv"></div>
+    <button type="button" id="btnStampPv" class="mini">預覽加註效果</button>
+    <div class="pvgrid" id="stampPvImgs"></div>
   </section>
 
   <!-- 拍後確認 -->
