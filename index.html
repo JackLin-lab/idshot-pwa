@@ -33,7 +33,7 @@
 
   <!-- 加註文字（證件用） -->
   <section id="stampSec" class="stampbox" hidden>
-    <div class="stamphd">加註文字：深藍色楷書，印在三張證件照的空白處</div>
+    <div class="stamphd">加註文字（預設不加註）：深藍色楷書，自動找證件上的空白處</div>
     <label><input type="checkbox" id="stA"> 僅供臺灣銀行</label>
     <label><input type="checkbox" id="stB"> 開戶</label>
     <label><input type="checkbox" id="stC"> 申辦貸款</label>
@@ -122,10 +122,16 @@
       <div class="chips" id="idPool"></div>
     </div>
     <p class="fn" id="idFn"></p>
+    <div class="savegrid">
+      <button type="button" id="btnJpgfront" class="ghost" disabled>存 身分證正面 JPG</button>
+      <button type="button" id="btnJpgback" class="ghost" disabled>存 身分證反面 JPG</button>
+      <button type="button" id="btnJpgnhi" class="ghost" disabled>存 健保卡正面 JPG</button>
+    </div>
     <div class="row">
-      <button type="button" id="btnDocx" class="primary" disabled>產生 Word 檔</button>
+      <button type="button" id="btnDocx" class="primary" disabled>產生 Word 檔（.docx）</button>
       <button type="button" id="btnIdShare" class="ghost" disabled hidden>分享</button>
     </div>
+    <button type="button" id="btnSaveAll" class="ghost wide" disabled>全部存檔（所有 JPG ＋ Word）</button>
     <button type="button" id="btnIdReset" class="ghost wide">新的一位（清除全部）</button>
   </section>
 
