@@ -1,5 +1,5 @@
 /* Service Worker：App 殼層預先快取；OCR 引擎／語言包於首次使用時快取 */
-const VER = 'idshot-v34';
+const VER = 'idshot-v35';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'parse.js', 'docx-lite.js',
   'manifest.webmanifest', 'app-icon-192.png', 'app-icon-512.png'];
 const TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
