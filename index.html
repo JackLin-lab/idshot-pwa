@@ -31,20 +31,6 @@
     <div class="slots" id="slots"></div>
   </section>
 
-  <!-- 加註文字（證件用） -->
-  <section id="stampSec" class="stampbox" hidden>
-    <div class="stamphd">加註文字（預設不加註）：深藍色楷書，自動找證件上的空白處</div>
-    <label><input type="checkbox" id="stA"> 僅供臺灣銀行</label>
-    <label><input type="checkbox" id="stB"> 開戶</label>
-    <label><input type="checkbox" id="stC"> 申辦貸款</label>
-    <label><input type="checkbox" id="stD"> 申辦信用卡</label>
-    <div class="stamppv" id="stampPv"></div>
-    <button type="button" id="btnStampPv" class="mini">預覽加註效果</button>
-    <button type="button" id="btnStampReset" class="mini" hidden>還原自動位置</button>
-    <div class="pvhint" id="pvHint" hidden>用手指按住藍色虛線框內的文字，拖到想要的位置；放開後存檔就會照這個位置（虛線框只在預覽顯示，不會印在照片上）。</div>
-    <div class="pvgrid" id="stampPvImgs"></div>
-  </section>
-
   <!-- 拍後確認 -->
   <section id="reviewSec" class="panel" hidden>
     <p class="rvtip" id="rvTip"></p>
@@ -82,6 +68,19 @@
     <label class="opt"><input type="checkbox" id="chkConfirm" checked> 拍完先確認方向（可旋轉）再辨識</label>
     <input type="file" id="fileSys" accept="image/*" capture="environment" hidden>
     <input type="file" id="fileGallery" accept="image/*" hidden>
+  </section>
+
+  <!-- 加註文字（證件用） -->
+  <section id="stampSec" class="stampbox" hidden>
+    <div class="stamphd">加註文字（預設不加註）</div>
+    <label><input type="checkbox" id="stA"> 僅供臺灣銀行</label>
+    <label><input type="checkbox" id="stB"> 開戶</label>
+    <label><input type="checkbox" id="stC"> 申辦貸款</label>
+    <label><input type="checkbox" id="stD"> 申辦信用卡</label><span class="stamppv" id="stampPv"></span>
+    <button type="button" id="btnStampPv" class="mini">預覽加註效果</button> <span class="dragnote">加註文字可拖曳</span>
+    <button type="button" id="btnStampReset" class="mini" hidden>還原自動位置</button>
+    <div class="pvhint" id="pvHint" hidden>用手指按住藍色虛線框內的文字，拖到想要的位置；放開後存檔就會照這個位置（虛線框只在預覽顯示，不會印在照片上）。</div>
+    <div class="pvgrid" id="stampPvImgs"></div>
   </section>
 
   <!-- 名片結果 -->
@@ -137,9 +136,7 @@
     <button type="button" id="btnIdReset" class="ghost wide">新的一位（清除全部）</button>
   </section>
 
-  <p class="note"><span id="fixCount"></span> <button type="button" id="btnFixClear" class="linkbtn" hidden>清除</button></p>
   <p class="note" id="ver"></p>
-  <p class="note">影像與姓名辨識都在手機本機處理，不會上傳。首次使用 OCR 需連網下載辨識引擎與中文語言包（數十 MB），之後會快取。</p>
 </main>
 
 <script src="parse.js"></script>
