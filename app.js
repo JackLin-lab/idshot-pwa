@@ -15,7 +15,7 @@
     { key: 'nhi', label: '健保卡正面', ocr: true }
   ];
   const TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-  const APP_VERSION = 'v3.5';
+  const APP_VERSION = 'v3.6';
   const FIX_KEY = 'idshot.fixes.v1', ORI_KEY = 'idshot.orient.v2', CONFIRM_KEY = 'idshot.confirm.v1', STAMP_KEY = 'idshot.stamp.v1';
   const KAI_CSS = 'https://cdn.jsdelivr.net/npm/lxgw-wenkai-tc-webfont@1.0.0/style.css';
   const KAI_STACK = '"LXGW WenKai TC","Kaiti TC","BiauKai","DFKai-SB","KaiTi","標楷體",serif';
@@ -29,7 +29,7 @@
     worker: null, queue: Promise.resolve(),
     card: { blob: null, url: null, nameEdited: false, coEdited: false, fileEdited: false, raw: { names: [], companies: [] }, job: 0, sel: { name: [], company: [] }, target: 'name', pool: [] },
     id: {
-      slots: {}, step: 'front', nameEdited: false, sel: [],
+      slots: {}, step: 'front', nameEdited: false, sel: [], plan: {},
       raw: { front: [], nhi: [] }, cands: { front: [], nhi: [] }, lines: { front: [], nhi: [] },
       state: { front: '', nhi: '' }, job: { front: 0, nhi: 0 }
     }
@@ -472,7 +472,7 @@
     const key = S.id.step; if (!key) return;
     canvas.toBlob((blob) => {
       const old = S.id.slots[key]; if (old) URL.revokeObjectURL(old.url);
-      S.id.slots[key] = { blob, url: URL.createObjectURL(blob) };
+      S.id.slots[key] = { blob, url: URL.createObjectURL(blob) }; S.id.plan[key] = null;
       const slot = SLOTS.find((s) => s.key === key);
       const next = SLOTS.find((s) => !S.id.slots[s.key]);
       S.id.step = next ? next.key : null;
@@ -590,24 +590,22 @@
       S.kaiFail = !Array.from(document.fonts).some((f) => /LXGW/.test(f.family) && f.status === 'loaded');
     } catch (_) { S.kaiFail = true; }
   }
-  function drawStamp(c, text) {
-    const W = c.width, H = c.height, x = c.getContext('2d');
-    const d = x.getImageData(0, 0, W, H).data;
+  function stampLayout(c, text, fs) {                    // 依字級排版：放得下一行就一行，否則分兩行
+    const W = c.width, x = c.getContext('2d');
+    x.font = fs + 'px ' + KAI_STACK;
+    let lines = [text];
+    if (x.measureText(text).width > W * 0.9) {
+      let cut = text.indexOf('、', Math.floor(text.length / 3));
+      cut = (cut < 0 || cut > text.length * 0.7) ? Math.ceil(text.length / 2) : cut + 1;
+      lines = [text.slice(0, cut), text.slice(cut)];
+    }
+    const lineH = Math.round(fs * 1.25);
+    return { fs, lines, lineH, boxH: lineH * lines.length + 6, boxW: Math.ceil(Math.max.apply(null, lines.map((l) => x.measureText(l).width))) + 16 };
+  }
+  function stampAuto(c, text) {                          // 自動：整張（含中間）找最平滑最亮的位置，先試大字再試小字
+    const W = c.width, H = c.height, d = c.getContext('2d').getImageData(0, 0, W, H).data;
     const L = (px, py) => { const i = (py * W + px) * 4; return (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000; };
     const mx = Math.round(W * 0.03), my = Math.round(H * 0.04);
-    // 依字級排版：放得下一行就一行，否則分兩行
-    function layout(fs) {
-      x.font = fs + 'px ' + KAI_STACK;
-      let lines = [text];
-      if (x.measureText(text).width > W * 0.9) {
-        let cut = text.indexOf('、', Math.floor(text.length / 3));
-        cut = (cut < 0 || cut > text.length * 0.7) ? Math.ceil(text.length / 2) : cut + 1;
-        lines = [text.slice(0, cut), text.slice(cut)];
-      }
-      const lineH = Math.round(fs * 1.25);
-      return { fs, lines, lineH, boxH: lineH * lines.length + 6, boxW: Math.ceil(Math.max.apply(null, lines.map((l) => x.measureText(l).width))) + 16 };
-    }
-    // 在整張照片（含中間）找最平滑、最亮的位置：邊緣越少、越亮越像空白
     function search(ly) {
       let best = { s: Infinity, x: mx, y: my };
       const xs = []; for (let px = mx; px <= W - ly.boxW - mx; px += 24) xs.push(px); if (!xs.length) xs.push(mx);
@@ -624,36 +622,88 @@
       }
       return best;
     }
-    const tries = [34, 28, 24, 20].map((fs) => { const ly = layout(fs); return { ly, b: search(ly) }; });
+    const tries = [34, 28, 24, 20].map((fs) => { const ly = stampLayout(c, text, fs); return { ly, b: search(ly) }; });
     const minS = Math.min.apply(null, tries.map((t) => t.b.s));
-    // 字越大越好讀：只要該字級找得到夠空白的位置（不比最空白處差太多）就用大的，否則改用較小字體
     const pick = tries.find((t) => t.b.s <= minS * 1.3 + 3) || tries[tries.length - 1];
-    x.font = pick.ly.fs + 'px ' + KAI_STACK;
+    return { ly: pick.ly, x: pick.b.x, y: pick.b.y };
+  }
+  const clampN = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  function stampPlan(key, c, text) {                     // 每張照片各記一個位置；手動拖過的位置會保留
+    const old = S.id.plan[key], ok = !S.kaiFail;
+    if (old && old.text === text && old.ok === ok) return old;
+    let pl;
+    if (old && old.manual) {
+      const ly = stampLayout(c, text, old.ly.fs);
+      pl = { text, ok, ly, x: clampN(old.x, 0, c.width - ly.boxW), y: clampN(old.y, 0, c.height - ly.boxH), manual: true };
+    } else {
+      const a = stampAuto(c, text);
+      pl = { text, ok, ly: a.ly, x: a.x, y: a.y, manual: false };
+    }
+    S.id.plan[key] = pl;
+    return pl;
+  }
+  function stampPaint(c, pl) {
+    const x = c.getContext('2d'), ly = pl.ly;
+    x.font = ly.fs + 'px ' + KAI_STACK;
     x.textBaseline = 'top'; x.textAlign = 'left'; x.lineJoin = 'round';
-    pick.ly.lines.forEach((ln, i) => {
-      const ty = pick.b.y + 3 + i * pick.ly.lineH;
-      x.lineWidth = Math.max(3, Math.round(pick.ly.fs / 7)); x.strokeStyle = 'rgba(255,255,255,0.9)'; x.strokeText(ln, pick.b.x + 8, ty);
-      x.fillStyle = '#0b2a6f'; x.fillText(ln, pick.b.x + 8, ty);
+    ly.lines.forEach((ln, i) => {
+      const ty = pl.y + 3 + i * ly.lineH;
+      x.lineWidth = Math.max(3, Math.round(ly.fs / 7)); x.strokeStyle = 'rgba(255,255,255,0.9)'; x.strokeText(ln, pl.x + 8, ty);
+      x.fillStyle = '#0b2a6f'; x.fillText(ln, pl.x + 8, ty);
     });
   }
+  function drawStamp(c, text, key) { stampPaint(c, stampPlan(key, c, text)); }
   async function slotCanvas(s, text) {
     const bmp = await createImageBitmap(S.id.slots[s.key].blob);
     const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
     c.getContext('2d').drawImage(bmp, 0, 0);
-    if (text) drawStamp(c, text);
+    if (text) drawStamp(c, text, s.key);
     return c;
+  }
+  function attachDrag(cv, key, redraw) {                // 按住文字（或文字附近）拖曳；按到別處仍可正常捲動頁面
+    let drag = null;
+    const toImg = (cx, cy) => { const r = cv.getBoundingClientRect(); return { x: (cx - r.left) * cv.width / r.width, y: (cy - r.top) * cv.height / r.height }; };
+    const start = (cx, cy) => {
+      const pl = S.id.plan[key]; if (!pl) return false;
+      const p = toImg(cx, cy), m = cv.width * 0.05;
+      if (p.x >= pl.x - m && p.x <= pl.x + pl.ly.boxW + m && p.y >= pl.y - m && p.y <= pl.y + pl.ly.boxH + m) { drag = { px: p.x, py: p.y, ox: pl.x, oy: pl.y }; return true; }
+      return false;
+    };
+    const move = (cx, cy) => {
+      if (!drag || !cv.isConnected) return;
+      const pl = S.id.plan[key], p = toImg(cx, cy);
+      pl.x = clampN(drag.ox + p.x - drag.px, 0, cv.width - pl.ly.boxW);
+      pl.y = clampN(drag.oy + p.y - drag.py, 0, cv.height - pl.ly.boxH);
+      pl.manual = true; redraw();
+    };
+    const end = () => { drag = null; };
+    cv.addEventListener('touchstart', (e) => { const t = e.touches[0]; if (start(t.clientX, t.clientY)) e.preventDefault(); }, { passive: false });
+    cv.addEventListener('touchmove', (e) => { if (!drag) return; e.preventDefault(); const t = e.touches[0]; move(t.clientX, t.clientY); }, { passive: false });
+    cv.addEventListener('touchend', end); cv.addEventListener('touchcancel', end);
+    cv.addEventListener('mousedown', (e) => { if (start(e.clientX, e.clientY)) e.preventDefault(); });
+    window.addEventListener('mousemove', (e) => move(e.clientX, e.clientY));
+    window.addEventListener('mouseup', end);
   }
   async function previewStamp() {
     const text = stampText(), box = $('#stampPvImgs'); box.innerHTML = '';
+    $('#btnStampReset').hidden = true; $('#pvHint').hidden = true;
     if (!text) { $('#stampPv').textContent = '（未勾選，不加註）'; return; }
     if (!SLOTS.some((s) => S.id.slots[s.key])) { $('#stampPv').textContent = text + '（拍好照片後才能預覽）'; return; }
     await ensureKai(text);
     for (const s of SLOTS) {
       if (!S.id.slots[s.key]) continue;
-      const im = document.createElement('img'); im.alt = s.label;
-      im.src = (await slotCanvas(s, text)).toDataURL('image/jpeg', 0.8);
-      box.appendChild(im);
+      const bmp = await createImageBitmap(S.id.slots[s.key].blob);
+      const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height; cv.className = 'pvcv'; cv.title = s.label;
+      box.appendChild(cv);
+      const redraw = () => {
+        const x = cv.getContext('2d'); x.drawImage(bmp, 0, 0);
+        const pl = stampPlan(s.key, cv, text); stampPaint(cv, pl);
+        x.save(); x.setLineDash([6, 4]); x.strokeStyle = 'rgba(56,189,248,0.95)'; x.lineWidth = 2;   // 只在預覽顯示的虛線框，存檔不會有
+        x.strokeRect(pl.x, pl.y, pl.ly.boxW, pl.ly.boxH); x.restore();
+      };
+      attachDrag(cv, s.key, redraw); redraw();
     }
+    $('#btnStampReset').hidden = false; $('#pvHint').hidden = false;
     if (S.kaiFail) $('#stampPv').textContent = text + '（楷體字型未載入，預覽改用系統字型；請連網後再試）';
   }
   async function makeDocx() {
@@ -696,7 +746,7 @@
   }
   function resetId() {
     SLOTS.forEach((s) => { const o = S.id.slots[s.key]; if (o) URL.revokeObjectURL(o.url); });
-    S.id.slots = {}; S.id.step = 'front'; S.id.nameEdited = false; S.id.sel = []; S.id.fb = null;
+    S.id.slots = {}; S.id.step = 'front'; S.id.nameEdited = false; S.id.sel = []; S.id.fb = null; S.id.plan = {};
     S.id.raw = { front: [], nhi: [] }; S.id.cands = { front: [], nhi: [] }; S.id.lines = { front: [], nhi: [] };
     S.id.state = { front: '', nhi: '' };
     S.id.job.front++; S.id.job.nhi++;
@@ -843,7 +893,8 @@
   } catch (_) { /* 忽略 */ }
   updateOrientUi();
   updateFixNote();
-  ['#stA', '#stB', '#stC', '#stD'].forEach((s) => { $(s).onchange = () => { $('#stampPvImgs').innerHTML = ''; updateStampUi(); }; });
+  ['#stA', '#stB', '#stC', '#stD'].forEach((s) => { $(s).onchange = () => { updateStampUi(); if ($('#stampPvImgs').children.length) previewStamp(); }; });
+  $('#btnStampReset').onclick = () => { S.id.plan = {}; previewStamp(); };
   $('#btnStampPv').onclick = previewStamp;
   updateStampUi();
   setMode('id');
