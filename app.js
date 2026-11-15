@@ -18,7 +18,7 @@
   const APP_VERSION = 'v3.6';
   const FIX_KEY = 'idshot.fixes.v1', ORI_KEY = 'idshot.orient.v2', CONFIRM_KEY = 'idshot.confirm.v1', STAMP_KEY = 'idshot.stamp.v1';
   const KAI_CSS = 'https://cdn.jsdelivr.net/npm/lxgw-wenkai-tc-webfont@1.0.0/style.css';
-  const KAI_STACK = '"LXGW WenKai TC","Kaiti TC","BiauKai","DFKai-SB","KaiTi","標楷體",serif';
+  const KAI_STACK = 'sans-serif';
   // 身分證／健保卡只先辨識姓名所在的區域（比例），讀不到才退回整張
   const ROI = { front: { x0: 0.22, y0: 0.10, x1: 1, y1: 0.62 }, nhi: { x0: 0.04, y0: 0.26, x1: 0.96, y1: 0.74 } };
 
@@ -81,8 +81,6 @@
   }
   function updateFixNote() {
     const n = Fix.count();
-    $('#fixCount').textContent = n ? '已記住 ' + n + ' 筆修正（辨識錯誤時會自動改成你更正過的字）' : '尚未記住任何修正（你改過姓名或公司並儲存後，就會記住）';
-    $('#btnFixClear').hidden = !n;
   }
 
   /* ===== 小工具 ===== */
@@ -574,25 +572,10 @@
   function updateStampUi() {
     $('#stampPv').textContent = stampText() || '（未勾選，不加註）';
   }
-  async function ensureKai(text) {                       // 載入楷體字型；失敗就用系統字型
-    S.kaiFail = false;
-    try {
-      if (!S.kaiCss) {                                   // 只建立一次樣式表連結，並等它載入完成（或失敗）
-        S.kaiCss = new Promise((res) => {
-          const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = KAI_CSS;
-          l.onload = () => res(true); l.onerror = () => { S.kaiCss = null; res(false); };
-          document.head.appendChild(l); setTimeout(() => res(false), 8000);
-        });
-      }
-      const ok = await S.kaiCss;
-      if (!ok) { S.kaiFail = true; return; }
-      await Promise.race([document.fonts.load('40px "LXGW WenKai TC"', text), new Promise((r) => setTimeout(r, 8000))]);
-      S.kaiFail = !Array.from(document.fonts).some((f) => /LXGW/.test(f.family) && f.status === 'loaded');
-    } catch (_) { S.kaiFail = true; }
-  }
+  async function ensureKai() { S.kaiFail = false; }        // 使用系統預設字型（粗體），不再載入外部字型
   function stampLayout(c, text, fs) {                    // 依字級排版：放得下一行就一行，否則分兩行
     const W = c.width, x = c.getContext('2d');
-    x.font = fs + 'px ' + KAI_STACK;
+    x.font = 'bold ' + fs + 'px ' + KAI_STACK;
     let lines = [text];
     if (x.measureText(text).width > W * 0.9) {
       let cut = text.indexOf('、', Math.floor(text.length / 3));
@@ -644,7 +627,7 @@
   }
   function stampPaint(c, pl) {
     const x = c.getContext('2d'), ly = pl.ly;
-    x.font = ly.fs + 'px ' + KAI_STACK;
+    x.font = 'bold ' + ly.fs + 'px ' + KAI_STACK;
     x.textBaseline = 'top'; x.textAlign = 'left'; x.lineJoin = 'round';
     ly.lines.forEach((ln, i) => {
       const ty = pl.y + 3 + i * ly.lineH;
@@ -751,6 +734,8 @@
     S.id.state = { front: '', nhi: '' };
     S.id.job.front++; S.id.job.nhi++;
     $('#idName').value = '';
+    ['#stA', '#stB', '#stC', '#stD'].forEach((q) => { $(q).checked = false; });
+    $('#stampPvImgs').innerHTML = ''; $('#btnStampReset').hidden = true; $('#pvHint').hidden = true; updateStampUi();
     renderSlots(); updateIdUi(); setCam(true); window.scrollTo(0, 0);
   }
 
@@ -861,7 +846,6 @@
   $('#btnSaveAll').onclick = saveAll;
   $('#btnIdShare').onclick = async () => { try { recordIdFix(); share(await makeDocx(), idFilename()); } catch (_) { /* 忽略 */ } };
   $('#btnIdReset').onclick = resetId;
-  $('#btnFixClear').onclick = () => { if (confirm('清除所有已記住的修正？')) { Fix.clear(); updateFixNote(); } };
   if (canShareFiles) { $('#btnCardShare').hidden = false; $('#btnIdShare').hidden = false; }
 
   window.addEventListener('resize', () => { if (S.camOn) layoutStage(); });
