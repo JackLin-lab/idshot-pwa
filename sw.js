@@ -1,5 +1,5 @@
 /* Service Worker：App 殼層預先快取；OCR 引擎／語言包於首次使用時快取 */
-const VER = 'idshot-v36';
+const VER = 'idshot-v37';
 const SHELL = ['./', 'index.html', 'style.css', 'app.js', 'parse.js', 'docx-lite.js',
   'manifest.webmanifest', 'app-icon-192.png', 'app-icon-512.png'];
 const TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
@@ -33,7 +33,7 @@ self.addEventListener('fetch', (e) => {
   e.respondWith((async () => {
     const cache = await caches.open(VER);
     const hit = await cache.match(req, { ignoreSearch: sameOrigin });
-    const fetchAndStore = fetch(req).then((res) => {
+    const fetchAndStore = fetch(req, sameOrigin ? { cache: 'no-cache' } : undefined).then((res) => {
       if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone());
       return res;
     });
