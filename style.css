@@ -99,3 +99,6 @@ details.lines summary{font-size:13px;color:var(--muted);cursor:pointer}
 .stampbox .mini{margin-top:2px;padding:2px 10px;font-size:12px}
 .pvgrid{margin-top:4px}
 .savegrid{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+
+.pvcv{width:100%;height:auto;display:block;border-radius:6px}
+.pvhint{font-size:12px;color:#93c5fd;margin:4px 0 0;line-height:1.4}
