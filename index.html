@@ -62,12 +62,14 @@
     <div class="row3">
       <button type="button" id="btnSys" class="ghost small">系統相機</button>
       <button type="button" id="btnGallery" class="ghost small">相簿</button>
+      <button type="button" id="btnFiles" class="ghost small">檔案</button>
       <button type="button" id="btnSwitch" class="ghost small">換鏡頭</button>
     </div>
     <label class="opt" id="optCrop"><input type="checkbox" id="chkCrop" checked> 名片依取景框裁切（取消則存整個畫面）</label>
     <label class="opt"><input type="checkbox" id="chkConfirm" checked> 拍完先確認方向（可旋轉）再辨識</label>
     <input type="file" id="fileSys" accept="image/*" capture="environment" hidden>
     <input type="file" id="fileGallery" accept="image/*" hidden>
+    <input type="file" id="fileDoc" accept="image/*,application/octet-stream" hidden>
   </section>
 
   <!-- 加註文字（證件用） -->

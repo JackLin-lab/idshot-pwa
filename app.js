@@ -15,7 +15,7 @@
     { key: 'nhi', label: '健保卡正面', ocr: true }
   ];
   const TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-  const APP_VERSION = 'v3.6';
+  const APP_VERSION = 'v3.7';
   const FIX_KEY = 'idshot.fixes.v1', ORI_KEY = 'idshot.orient.v2', CONFIRM_KEY = 'idshot.confirm.v1', STAMP_KEY = 'idshot.stamp.v1';
   const KAI_CSS = 'https://cdn.jsdelivr.net/npm/lxgw-wenkai-tc-webfont@1.0.0/style.css';
   const KAI_STACK = 'sans-serif';
@@ -824,8 +824,9 @@
   $('#btnSwitch').onclick = switchCam;
   $('#btnSys').onclick = () => $('#fileSys').click();
   $('#btnGallery').onclick = () => $('#fileGallery').click();
-  ['#fileSys', '#fileGallery'].forEach((sel) => {
-    $(sel).onchange = (e) => { const f = e.target.files[0]; e.target.value = ''; onFile(f); };
+  $('#btnFiles').onclick = () => $('#fileDoc').click();
+  ['#fileSys', '#fileGallery', '#fileDoc'].forEach((sel) => {
+    $(sel).onchange = (e) => { const f = e.target.files[0]; e.target.value = ''; onFile(f).catch(() => { showBanner('這個檔案無法當作照片開啟，請選 JPG 或 PNG 圖片。'); setTimeout(() => showBanner(''), 4000); }); };
   });
   $('#cardName').oninput = () => { S.card.nameEdited = true; S.card.sel.name = []; updateCardFn(); renderCardPool(); };
   $('#cardCompany').oninput = () => { S.card.coEdited = true; S.card.sel.company = []; updateCardFn(); renderCardPool(); };
